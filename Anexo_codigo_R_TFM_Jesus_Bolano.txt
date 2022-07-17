@@ -1,0 +1,362 @@
+install.packages(c("tidyverse", "tidytext")) ##Instalar librerias que vamos a necesitar {udipe}, {scales}, {tidyverse} y {tiditext}
+install.packages("scales")
+install.packages("udpipe")
+
+library(tidyverse) ##Cargar las librerias que me van a hacer falta
+library(tidytext)
+library(rvest)
+library(scales)
+library(udpipe)
+
+
+Emerson_Conduct <- readLines("datos/obras/Emerson_Conduct.txt") ##Leer el corpus ya preparado
+Emerson_English <- readLines("datos/obras/Emerson_English.txt")
+Emerson_Essays1 <- readLines("datos/obras/Emerson_Essays1.txt")
+Emerson_Essays2 <- readLines("datos/obras/Emerson_Essays2.txt")
+Emerson_Nature <- readLines("datos/obras/Emerson_Nature.txt")
+Emerson_Representative <- readLines("datos/obras/Emerson_Representative.txt")
+Thoreau_Coneing <- readLines("datos/obras/Thoreau_Canoeing.txt")
+Thoreau_Excursions <- readLines("datos/obras/Thoreau_Excursions.txt")
+Thoreau_Journal1 <- readLines("datos/obras/Thoreau_Journal1.txt")
+Thoreau_Journal2 <- readLines("datos/obras/Thoreau_Journal2.txt")
+Thoreau_Maine <- readLines("datos/obras/Thoreau_Maine.txt")
+Thoreau_Walden <- readLines("datos/obras/Thoreau_Walden.txt")
+Thoreau_Walking <- readLines("datos/obras/Thoreau_Wlaking.txt")
+Thoreau_Week <- readLines("datos/obras/Thoreau_Week.txt")
+
+
+##Lo que sigue es la preparacion de los textos para analisis textual
+
+ficheros <- list.files(path = "datos/obras",  ##como se llaman los ficheros
+                       pattern = ".txt")
+
+titulos <- gsub("\\.txt", 
+                "",
+                ficheros,
+                perl = TRUE)
+
+obras <- tibble(titulos = character(), ##Tabla en la que es guardaran los datos de los ficheros
+                parrafo = numeric(),
+                texto = character())
+
+for (i in 1:length(ficheros)){              ##Se completa la tabla con la informacion
+  ensayo <- readLines(paste("datos/obras",
+                            ficheros[i],
+                            sep = "/"))
+  temporal <- tibble(titulos = titulos[i],
+                     parrafo = seq_along(ensayo),
+                     texto = ensayo)
+  obras <- bind_rows(obras, temporal)
+}
+
+obras
+
+obras_palabras <- obras %>%     ##Divido los textos en palabras token
+  unnest_tokens(palabra, texto)
+
+obras_palabras
+
+nrow(obras_palabras) / length(ficheros) ##Promedio de palabras token de los dos textos
+
+obras_palabras %>%          ##palabras tipo y su frecuencia absoluta mayor a menor
+  count(palabra, sort = TRUE)
+
+
+obras_palabras %>%      ##palabras tipo y su frecuencia relativa de mayor a menor
+  count(palabra, sort = T) %>%
+  mutate(relativa = n / sum(n))
+
+obras_frecuencias <- obras_palabras %>%   ##tabla con informacion anterior
+  count(palabra, sort = T) %>%
+  mutate(relativa = n / sum(n))
+
+frecuencias_titulos <- obras_palabras %>%   ##Agrupo observaciones
+  group_by(titulos) %>%
+  count(palabra, sort =T) %>%
+  mutate(relativa = n / sum(n)) %>%
+  ungroup()
+
+palabras_Emerson_Nature <- frecuencias_titulos %>%   ##extraer informacion de un solo titulo a partir de lo anterior
+  filter(titulos == "Emerson_Nature")
+
+palabras_Emerson_Nature
+
+sum(palabras_Emerson_Nature$n) ## numero palabras token
+
+obras_palabras %>%     ##grafico comparativa de numero de palabras
+  group_by(titulos) %>%
+  count() %>%
+  ggplot() +
+  geom_bar(aes(titulos, n),
+           stat = 'identity',
+           fill = "lightblue") +
+  theme(legend.position = 'none',
+        axis.text.x = element_text(angle = 45,
+                                   hjust = 1)) +
+  labs(x = "Títulos",
+       y = "Número de palabras") +
+  ggtitle("Comparativa de extensión de todas las obras transcendentalistas",
+          subtitle = "Número de palabras en cada obra")
+
+##Palabras vacias
+
+vacias <- get_stopwords("en") ##cargar lista de palabras vacias
+
+vacias <- vacias %>%
+  rename(palabra = word)  ##cambiar nombre de columna a español
+
+vacias
+
+obras_vaciado <- obras_palabras %>% ##Borrado de palabras vacias
+  anti_join(vacias)
+
+obras_vaciado %>%                   ##Grafica con lista de palabras mas frecuentes despues del vaciado
+  count(palabra, sort = T) %>%
+  filter(n > 800) %>%
+  mutate(palabra = reorder(palabra, n)) %>%
+  ggplot(aes(x = palabra, y = n, fill = palabra)) +
+  geom_bar(stat="identity") +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  ylab("Número de veces que aparecen") +
+  xlab(NULL) +
+  ggtitle("Ttranscendentalismo", "Emerson y Thoreau") +
+  coord_flip()
+
+vacias_adhoc <- tibble(palabra = c("â",  ##vaciado de palabras ad hoc
+                                   "us",
+                                   "s",
+                                   "can",
+                                   "every",
+                                   "may",
+                                   "still",
+                                   "much",
+                                   "never",
+                                   "though",
+                                   "many",
+                                   "great",
+                                   "yet",
+                                   "must",
+                                   "two",
+                                   "well",
+                                   "first",
+                                   "without",
+                                   "even",
+                                   "long",
+                                   "little",
+                                   "side",
+                                   "shall",
+                                   "things",
+                                   "way",
+                                   "last",
+                                   "far",
+                                   "another",
+                                   "might",
+                                   "also",
+                                   "nothing",
+                                   "always",
+                                   "three",
+                                   "ever",
+                                   "sometimes",
+                                   "just",
+                                   "whole",
+                                   "whose",
+                                   "half",
+                                   "thus",
+                                   "things",
+                                   "small",
+                                   "upon",
+                                   "near",
+                                   "along",
+                                   "enough",
+                                   "away",
+                                   "less",
+                                   "perhaps",
+                                   "england",
+                                   "soon",
+                                   "hundred",
+                                   "within"
+                                   ))
+
+obras_vaciado <- obras_vaciado %>%  ##quitar palabras vacias ad hoc de los textos. Ahora se puede volver a ejecutar la grafica para resultados mas finos
+  anti_join(vacias_adhoc)
+
+obras_vaciado_tipo <- obras_vaciado %>% count(palabra) ##lista de palabras tipo
+
+##Comparar lexicos
+
+obras_vaciado <- obras_vaciado %>%    ##crear columna con autor
+  mutate(autor = titulos) %>%
+  mutate(autor = ifelse(autor %in% as.character(c("Emerson_English",
+                                                "Emerson_Essays1",
+                                                "Emerson_Essays2",
+                                                "Emerson_Nature",
+                                                "Emerson_Representative",
+                                                "Emerson_Conduct")),
+                      "Emerson",
+                      "Thoreau"))
+
+obras_vaciado %>%            ##grafico de palabras mas frecuentes de los dos autores
+  group_by(autor) %>%
+  count(palabra, sort = T) %>%
+  top_n(60)%>%
+  ggplot(aes(reorder(palabra, n),
+           n,
+           fill = autor)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~autor,
+             scales = "free_x") +
+  labs(x = "",
+       y = "Frecuencia absoluta") +
+  coord_flip() +
+  theme(legend.position="none")
+
+obras_titulos <- obras_vaciado %>%          ##los dos siguientes bloques son para hacer grafico
+  select(autor, titulos, palabra) %>%        ##de las palabras + frecuentes de las obras de Emerson
+  filter(autor == "Emerson") %>%
+  group_by(titulos) %>%
+  count(palabra, sort =T) %>%
+  ungroup()
+
+obras_titulos %>%
+  filter(n > 75) %>%
+  ggplot(aes(x = palabra,
+             y = n)) +
+  geom_col(fill = "aquamarine") +
+  coord_flip() +
+  facet_wrap(~ titulos,
+             ncol = 3,
+             scales = "free_y")
+
+obras_titulos2 <- obras_vaciado %>%          ##los dos siguientes bloques son para hacer grafico
+  select(autor, titulos, palabra) %>%        ##de las palabras + frecuentes de las obras de Thoreau
+  filter(autor == "Thoreau") %>%
+  group_by(titulos) %>%
+  count(palabra, sort =T) %>%
+  ungroup()
+
+obras_titulos2 %>%
+  filter(n > 175) %>%
+  ggplot(aes(x = palabra,
+             y = n)) +
+  geom_col(fill = "aquamarine") +
+  coord_flip() +
+  facet_wrap(~ titulos,
+             ncol = 3,
+             scales = "free_y")
+
+
+## Comparar la frecuencia del lexico
+
+titulos3 <- c("Emerson_English.txt",             ##leer nombres de los ficheros
+              "Emerson_Essays1.txt",
+              "Emerson_Essays2.txt",
+              "Emerson_Nature.txt",
+              "Emerson_Representative.txt",
+              "Emerson_Conduct.txt",
+              "Thoreau_Canoeing.txt",
+              "Thoreau_Excursions.txt",
+              "Thoreau_Journal1.txt",
+              "Thoreau_Journal2.txt",
+              "Thoreau_Maine.txt",
+              "Thoreau_Walden.txt",
+              "Thoreau_Walking.txt",
+              "Thoreau_Week.txt")
+
+Em <- rep("Emerson", 6) ##crear vectores para los nombres de los autores
+Th <- rep("Thoreau", 7)
+autor <- c(Em, Th)
+
+obras <- tibble(titulo = character(),   ##generar tablas con los textos
+                   autor = character(),
+                   parrafo = numeric(),
+                   texto = character())
+
+for (i in 1:length(titulos3)){            ##tabla para guardar todos los textos con la columna de autor
+  discurso <- readLines(paste("datos/obras",
+                              titulos3[i],
+                              sep = "/"))
+  temporal <- tibble(titulo = titulos3[i],
+                     autor = autor[i],
+                     parrafo = seq_along(discurso),
+                     texto = discurso)
+  obras <- bind_rows(obras, temporal)
+}
+
+Th <- obras %>%             ##tablas para cada autor solo con el texto
+  filter(autor == "Thoreau") %>%
+  select(texto)
+
+Em <- obras %>%
+  filter(autor == "Emerson") %>%
+  select(texto)
+
+rm(temporal, i) ## borrado de datos innecesarios
+
+Th_palabras <- Th %>%                 ##division por palabras por autor 
+  unnest_tokens(palabra, texto) %>%   ##y borrado de palabras vacias
+  anti_join(vacias)
+
+Em_palabras <- Em %>%
+  unnest_tokens(palabra, texto) %>%
+  anti_join(vacias)
+
+##Calcular las frecuencias
+
+Th_porcentaje <- Th_palabras %>%             ##calcular porcentajes
+  mutate(palabra = str_extract(palabra, "\\D+")) %>%
+  count(palabra) %>%
+  transmute(palabra, Thoreau = n / sum(n), autor = "Thoreau")
+
+Em_porcentaje <- Em_palabras %>%
+  mutate(palabra = str_extract(palabra, "\\D+")) %>%
+  count(palabra) %>%
+  transmute(palabra, Emerson = n / sum(n), autor = "Emerson")
+
+autores_frecuencias <- Th_porcentaje %>%    ##unir ambas tablas
+  left_join(Em_porcentaje, by = "palabra")
+
+autores_frecuencias
+
+ggplot(data = autores_frecuencias,   ##Grafica comparativa de frecuencias relativas
+       mapping = aes(x = Emerson,
+                     y = Thoreau,
+                     color = abs(Emerson - Thoreau))) +
+  geom_abline(color = "red",
+              lty = 2) +
+  geom_jitter(alpha = 0.1,
+              size = 2.5,
+              width = 0.3,
+              height = 0.3) +
+  geom_text(aes(label = palabra),
+            check_overlap = T,
+            vjust = 1.5) +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  scale_color_gradient(limits = c(0, 0.001),
+                       low = "darkgreen",
+                       high = "gray") +
+  facet_wrap(~ autor.x,
+             ncol = 2) + 
+  theme(legend.position="none", strip.text.x = element_blank()) +
+  labs(y = "Thoreau",
+       x = "Emerson")
+
+
+
+########################################################################################
+Codigo para función classify() en Stylo
+########################################################################################
+
+
+library(stylo) ##cargar la librería
+
+stylo()
+
+classify() ##hacer el análisis
+
+results = classify(cv.folds=10) ##guardar resultados en un vector
+
+results$cross.validation.summary ##consultar porcentaje de aciertos de cada vuelta
+
+mean(results$cross.validation.summary) ##cálculo del porcentaje general del corpus haciendo una media
